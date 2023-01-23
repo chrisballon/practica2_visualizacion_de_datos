@@ -1,0 +1,466 @@
+---
+title: 'PRA2 - Limpieza y pre-procesado del dataset'
+author: "Autor: Christopher Irvin Ballon Peralta"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+******
+
+# Elección del conjunto de datos
+
+Nos decidimos por elegir un juego de datos de kaggle
+
+https://www.kaggle.com/marialuiza07/santander-product-recomendation/version/1?select=train_ver2.csv
+
+Buscando un poco, el juego de datos fue originalmente propuesto en un concurso del Banco Santander de España, consistia en clasificar la base de datos de clientes con el fin de ofrecerles el producto que tenga mas probabilidad de ser contratado por el cliente para una campaña de productos financieros en navidad. 
+
+El conjunto de datos fue elegido por su gran complejidad: 26 columnas, un amplio volumen de datos (1e6 registros), datos incompletos, también por su potencial analisis y uso de modelos estadisticos en ciencia de datos. 
+
+
+# Exploración del conjunto de datos
+
+Primero importamos el juego de datos y mostramos las dimensiones
+
+```{r}
+if (!require(readr)) install.packages(plyr)
+require(readr)
+df <- read_csv("train_ver2.csv")
+print(dim(df))
+```
+
+Para realizar el tratamiento de datos seleccionamos una muestra de los datos totales, luego generalizamos el proceso con todo el dataset.
+
+```{r}
+if (!require(dplyr)) install.packages(plyr)
+require(dplyr)
+library(dplyr)
+df <- sample_frac(df, 0.08)
+```
+
+
+Realizamos una primera visualización de las columnas
+
+```{r}
+head(df)
+```
+
+## Analisis de caracteristicas:
+
+Mostramos la descripción de las columnas, información adjunta al dataset.
+
+**fecha_dato**	Fecha que se crea el registro
+
+**ncodpers**	Codigo del cliente
+
+**ind_empleado**	Indice de empleado: A activo, B ex empleado, F filial, N no empleado, P pasivo
+
+**pais_residencia**	Pais de residencia del cliente
+
+**sexo**	Genero del cliente
+
+**age**	Edad
+
+**fecha_alta**	Fecha en que el cliente contrato su primer producto con el banco
+
+**ind_nuevo**	Indice de nuevo cliente (1 si se registró en los ultimos 6 meses)
+
+**antiguedad**	antiguedad del cliente (en meses)
+
+**indrel**	1 (Cliente principal / primario), 99 (Cliente principal al inicio del mes, pero no al final del mes)
+
+**ult_fec_cli_1t**	Ultima fecha como cliente principal (si no estuvo al final del mes)
+
+**indrel_1mes**	Tipo de cliente al comienzo de mes, 1 (Cliente principal / primario), 2 (Mancomunado),P (Potencial),3 (anteriormente primario), 4(anteriormente mancomunado)
+
+**tiprel_1mes**	Tipo de relación del cliente a principio de mes, A (activo), I (inactivo), P (anteriormente cliente),R (Potencial)
+
+**indresi**	Indice de residencia (S (Si) or N (No) el pais de residencia es el mismo de la locación del banco)
+
+**indext**	Indice de extrangero (S (Si) or N (No) el pais de nacimiento del cliente es el mismo que la localidad del banco)
+
+**conyuemp**	Indice de esposo. 1 si el cliente es esposo (a) de un trabajador
+
+**canal_entrada**	Canal por el cual el cliente fue ingresado
+
+**indfall**	Indice de fallecido. N/S
+
+**tipodom**	Tipo de domicilio. 1, Dirección primaria
+
+**cod_prov**	codigo de provincia (Domicilio del cliente)
+
+**nomprov**	Nombre de provincia
+
+**ind_actividad_cliente**	Indice de actividad (1, cliente activo; 0, cliente inactivo)
+
+**renta**	Ingreso bruto por hogar
+
+**segmento**	segmentación: 01 - VIP, 02 - Individuos 03 - Graduado universitario
+
+**ind_ahor_fin_ult1**	Cuenta de ahorros
+
+**ind_aval_fin_ult1**	Garantia
+
+**ind_cco_fin_ult1**	Cuenta corriente
+
+**ind_cder_fin_ult1**	Cuenta derivada
+
+**ind_cno_fin_ult1**	Cuenta de nomina de sueldos
+
+**ind_ctju_fin_ult1**	Cuenta junior
+
+**ind_ctma_fin_ult1**	Cuenta Más particular
+
+**ind_ctop_fin_ult1**	CUenta particular 
+
+**ind_ctpp_fin_ult1**	Cuenta Particular Plus
+
+**ind_deco_fin_ult1**	Deposito a corto plazo
+
+**ind_deme_fin_ult1**	Deposito a mediano plazo
+
+**ind_dela_fin_ult1**	Deposito a largo plazo
+
+**ind_ecue_fin_ult1**	Cuenta electronica
+
+**ind_fond_fin_ult1**	Cuenta de fondos
+
+**ind_hip_fin_ult1**	Prestamo hipotecario
+
+**ind_plan_fin_ult1**	Pensión
+
+**ind_pres_fin_ult1**	Prestamo
+
+**ind_reca_fin_ult1**	Cuenta de impuestos
+
+**ind_tjcr_fin_ult1**	Tarjeta de credito
+
+**ind_valo_fin_ult1**	Seguro
+
+**ind_viv_fin_ult1**	Cuenta domestica
+
+**ind_nomina_ult1**	nomina de sueldo
+
+**ind_nom_pens_ult1**	Pensiones
+
+**ind_recibo_ult1**	Debito directo
+
+
+
+Realizamos una primera inspección de las caracteristicas
+
+```{r}
+summary(df)
+```
+
+Dado que los registros podrian mostrar al mismo cliente dos o mas veces, seleccionamos solo las entradas que contengan la ultima entrada. (la mas reciente)
+
+```{r}
+df <- df[ !duplicated(df[, c("ncodpers", "fecha_dato")], fromLast=T),]
+```
+
+
+De un primer analisis observamos que varias columnas tienen valores nulos y que las ultimas 24 columnas perteneces a los productos que tienen contratados cada cliente, a partir de ello podemos indicar que cada cliente solo cuenta con una unidad de cada producto como maximo, lo cual puede ser util para codificar esta información mas adelante en el preprocesado de datos, por ejemplo expresar en formato binario (0s y 1s)
+
+Para un analisis más especifico obtenemos el porcentaje de nulos de cada columna
+
+```{r}
+colMeans(is.na(df))
+```
+
+Como mencionamos anteriormente, dado el elevado volumen de datos necesitaremos recodificar los productos en una sola variable y presindir de las ultimas 14 columnas, para ello primero asignaremos a ceros los valores faltantes de *ind_nomina_ult1* y *ind_nom_pens_ult1*:
+
+```{r}
+if (!require(plyr)) install.packages(plyr)
+require(plyr)
+library(plyr)
+df$ind_nomina_ult1 <- mapvalues(df$ind_nomina_ult1, from=c(NA), to=c(0))
+df$ind_nom_pens_ult1 <- mapvalues(df$ind_nom_pens_ult1, from=c(NA), to=c(0))
+```
+
+Seguidamente recodificamos las ultimas 24 columnas como numeros binarios, esto indicará los productos con que cuentan cada cliente.
+
+```{r, echo=FALSE}
+require(tidyr)
+if (!require(tidyr)) install.packages(plyr)
+library(tidyr)
+
+df <- unite(df, productos, c(ind_ahor_fin_ult1, ind_aval_fin_ult1, ind_cco_fin_ult1, ind_cder_fin_ult1,   ind_cno_fin_ult1, ind_ctju_fin_ult1, ind_ctma_fin_ult1, ind_ctop_fin_ult1, ind_ctpp_fin_ult1, ind_deco_fin_ult1, ind_deme_fin_ult1, ind_dela_fin_ult1, ind_ecue_fin_ult1, ind_fond_fin_ult1, ind_hip_fin_ult1, ind_plan_fin_ult1, ind_pres_fin_ult1, ind_reca_fin_ult1, ind_tjcr_fin_ult1, ind_valo_fin_ult1, ind_viv_fin_ult1, ind_nomina_ult1, ind_nom_pens_ult1, ind_recibo_ult1))
+```
+
+vemos que la columna *counyuemp* esta completamente conformada de valores nulos, por lo que podemos omitirla en el analisis, esto puede indicar que ningun cliente es conyugue de un trabajador, o no se ingresó esta información.
+
+De forma parecida ocurre con la columna *ult_fec_cli_1t*, se cuenta con menos del 1% de datos ingresados, por esto y al estar imposibilitados de completar o estimar los datos faltantes para esta columna, la omitimos.
+
+En todos los demas casos creeemos que será posible tratar los valores nulos, siendo el mas alto en porcentaje de nulos: *Renta*, que indica el ingreso bruto del hogar del cliente. (20% aproximadamente)
+
+```{r}
+drops <- c("conyuemp","ult_fec_cli_1t")
+df <- df[, !(names(df) %in% drops)]
+```
+
+
+# Preprocesado y gestión de características
+
+Comenzaremos gestionando la variable *ind_empleado*, esta indica si el cliente es trabajador del banco, podemos imputar los valores nulos con el valor N, (no es empleado) y verificamos tambien la integridad del resto de valores.
+
+```{r}
+print(unique(df[c("ind_empleado")]))
+```
+
+Verificamos los unicos valores en la columna, reetiquetamos S a P (pasivo, unica categoria faltante) y los valores nulos a N (No empleado)
+
+```{r}
+df$ind_empleado <- mapvalues(df$ind_empleado, from=c(NA,"S"), to=c("N", "P"))
+print(unique(df[c("ind_empleado")]))
+```
+
+Visualizamos los valores de *pais_residencia*
+
+```{r}
+print(unique(df[c("pais_residencia")]))
+```
+
+Imputamos los valores nulos a D. (Desconocido)
+
+```{r}
+df$pais_residencia <- mapvalues(df$pais_residencia, from=c(NA), to=c("D"))
+```
+
+Verificamos los valores de la variable sexo, anteriormente se vió que el porcentaje de nulos era del 2%
+
+```{r}
+print(unique(df[c("sexo")]))
+```
+
+Reetiquetamos los valores nulos a D (desconocido)
+
+```{r}
+df$sexo <- mapvalues(df$sexo, from=c(NA), to=c("D"))
+```
+
+
+Realizamos un grafico de barras para la variable *age*:
+
+```{r}
+require(ggplot2)
+if (!require(ggplot2)) install.packages(ggplot2)
+library(ggplot2)
+
+ggplot(df, aes(x = age)) +
+  geom_vline(aes(xintercept = mean(age)), color = "blue",
+             linetype = "dashed", size = 1.5) +
+  geom_histogram(binwidth = 5, aes(y = ..density..), 
+                 color = "black", fill = "white") +
+  geom_density(alpha = 0.4, fill = "red") +
+  labs(title = "Histograma de densidad - Edad")
+```
+
+Procederemos a imputar los valores faltantes con la media. (los datos faltantes conforman solo el 0.2%)
+
+```{r}
+df$age <- mapvalues(df$age, from=c(NA), to=c(mean(df$age)))
+```
+
+De manera similar con las variables *ind_nuevo*, imputaremos los valores nulos a 0 (no se registró en los ultimos 6 meses) y *antiguedad*, imputaremos los valores nulos con la media, ya que los valores nulos representan el 0.2% del total
+
+```{r}
+df$ind_nuevo <- mapvalues(df$ind_nuevo, from=c(NA), to=c(0))
+df$antiguedad <- mapvalues(df$antiguedad, from=c(NA), to=c(mean(df$antiguedad)))
+```
+
+Para tratar *indresi* y *indext* realizamos un grafico de barras:
+
+```{r}
+counts <- table(df$indresi)
+barplot(counts, main = "Grafico de barras - Ind. Residente")
+```
+
+Observamos del grafico de barras de la variable indice de residente, (si el cliente reside en la misma localidad del banco) un porcentaje extremandamente bajo no es residente, por ello podemos desestimar las variables *indresi* y *indext* ya que se cuenta con columnas con mas información como codigo de provincia y pais de procedencia.
+
+```{r}
+drops <- c("indresi","indext")
+df <- df[, !(names(df) %in% drops)]
+```
+
+De manera similar, realizamos un grafico de barras para la variable *ind_nuevo*
+
+```{r}
+counts <- table(df$ind_nuevo)
+barplot(counts, main = "Grafico de barras - Ind. Nuevo")
+```
+
+Vemos que esta variable también aporta muy poca información (el numero de clientes ingresados en los ultimos 6 meses no se significativo) y queda mejor expresada dentro de la variable *antiguedad*
+
+```{r}
+drops <- c("ind_nuevo")
+df <- df[, !(names(df) %in% drops)]
+```
+
+Similarmente con al variable *indrel*:
+
+```{r}
+counts <- table(df$indrel)
+barplot(counts, main = "Grafico de barras - Ind. Rel")
+```
+
+Esta variable tambien no aporta información significativa ya que casi todos los clientes son principales.
+
+```{r}
+drops <- c("indrel", "indrel_1mes", "tiprel_1mes")
+df <- df[, !(names(df) %in% drops)]
+```
+
+Realizamos el mismo tratamiento con la variable *indfall* 
+
+```{r}
+counts <- table(df$indfall)
+barplot(counts, main = "Grafico de barras - Ind. Fall")
+```
+
+En este caso ya que nos encontramos buscando productos para una campaña de productos, no nos interesan los clientes fallecidos (ademas representan menos del 1% porcentaje del total)
+
+```{r}
+#Seleccionamos aquellos clientes no fallecidos
+df <- df[!(df$indfall == "S"),]
+#Eliminamos la columna que no aporta informacion
+drops <- c("indfall")
+df <- df[, !(names(df) %in% drops)]
+```
+
+Con respecto a la variable *tipodom*, no aporta información ya que todos los registros son monovaluados.
+
+```{r}
+counts <- table(df$tipodom)
+barplot(counts, main = "Grafico de barras - Tipo Dom")
+```
+
+```{r}
+drops <- c("tipodom")
+df <- df[, !(names(df) %in% drops)]
+```
+
+Entre las variables *codprov* y *nomprov*, eligiremos *nombprov* e imputaremos los valores nulos a "N", ademas al ser de tipo categorico, es conveniente mantenerla como cadena de caracteres.
+
+```{r}
+drops <- c("cod_prov")
+df <- df[, !(names(df) %in% drops)]
+df$nomprov <- mapvalues(df$nomprov, from=c(NA), to=c("D"))
+```
+
+Visualizamos los valores de *ind_actividad_cliente*, asignamos los valores nulos a 0 (no activo).
+
+```{r}
+counts <- table(df$ind_actividad_cliente)
+barplot(counts, main = "Grafico de barras - Ind. Actividad")
+df$ind_actividad_cliente <- mapvalues(df$ind_actividad_cliente, from=c(NA), to=c(0))
+
+```
+
+Al contar con la variable antiguedad, y haber eliminado duplicados al inicio del analisis, podemos presindir de las variable *fecha_dato* y *fecha_alta*.
+
+
+```{r}
+drops <- c("fecha_dato", "fecha_alta")
+df <- df[, !(names(df) %in% drops)]
+```
+
+
+Analizamos la variable *pais_residencia*
+
+```{r}
+counts <- table(df$pais_residencia)
+barplot(counts, main = "Grafico de barras - Pais de Residencia")
+```
+
+Está conformada casi por completo en España, al contar con la variable provincia, la eliminamos.
+
+```{r}
+drops <- c("pais_residencia")
+df <- df[, !(names(df) %in% drops)]
+```
+
+Ahora revisamos la variable *segmento*
+
+```{r}
+counts <- table(df$segmento)
+barplot(counts, main = "Grafico de barras - Segmento")
+```
+
+Indicamos los registros vacios con "D"
+
+```{r}
+df$segmento <- mapvalues(df$segmento, from=c(NA), to=c("D"))
+```
+
+Ahora revisamos la variable *canal_entrada*
+
+```{r}
+counts <- table(df$canal_entrada)
+barplot(counts, main = "Grafico de barras - Segmento")
+```
+
+Indicamos los registros vacios con "D"
+
+```{r}
+df$canal_entrada <- mapvalues(df$canal_entrada, from=c(NA), to=c("D"))
+```
+
+
+## Tratamiento de outliers:
+
+Primero realizaremos un grafico de caja de la variable *renta* para detectar outliers:
+
+```{r}
+boxplot(df$renta, main="Grafico de caja de Renta", col="gray")
+```
+
+Utilizaremos el principio de remoción de outliers basados en excluir aquellos fuera del rango intercuartilico: (asignaremos a NA)
+
+```{r}
+df[df$renta %in% boxplot.stats(df$renta)$out, "renta"] <- NA
+boxplot(df$renta, main="Grafico de caja de Renta", col="gray")
+```
+
+Seguidamente, imputamos los valores NA a la media del resto de datos:
+
+```{r}
+df$renta[is.na(df$renta)] <- mean(df$renta, na.rm = TRUE)
+```
+
+
+```{r}
+head(df)
+```
+
+
+
+# Construcción de conjunto de datos final
+
+Luego de realizar las correcciones verificamos los datos y exportamos como csv.
+
+```{r}
+df <- na.omit(df)
+colMeans(is.na(df))
+# escribimos el archivo csv
+write.csv(df, "clean_data.csv", row.names = FALSE)
+```
+
+
+  
+
+
+
