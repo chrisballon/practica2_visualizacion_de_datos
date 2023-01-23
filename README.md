@@ -10,7 +10,7 @@ https://public.flourish.studio/story/1808308/
 
 ## Código
 
-Se incluye tanto el codigo (Markdown R) y los archivos de salida en formato HTML 
+Se incluye tanto el codigo (Markdown R) y los archivos de salida en formato HTML, en ellos se detalla los pasos de limpieza, Analisis exploratorio, modelamiento
 
 ### Preprocesado de datos:
 
