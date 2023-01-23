@@ -1,0 +1,219 @@
+---
+title: 'PRA2 - Proyecto de visualizacion de datos'
+author: "Autor: Christopher Irvin Ballon Peralta"
+date: "Enero 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+******
+<h1>Carga de datos preparados en Practica 1</h1>
+
+
+Se ha usado el archivo de salida de la practica anterior: "clean_data.csv".
+
+
+
+```{r}
+# importamos la libreria dplyr
+if (!require(dplyr)) install.packages(plyr)
+library(dplyr)
+# importamos la libreria stringr
+if (!require(stringr)) install.packages(stringr)
+library(stringr)
+# importamos la libreria plyr
+if (!require('plyr')) install.packages('plyr')
+library(plyr)
+# cargamos el dataset
+data <- read.csv("clean_data.csv")
+# Seleccionamos una muestra aleatoria del dataset para efectos de no agotar 
+# memoria del sistema con las funciones utilizadas
+data <- sample_frac(data, 0.005)
+# Damos formato a la columna productos
+data$productos <- str_replace_all(data$productos, "_", "")
+# mapeamos los valores dando formato a las variables categoricas
+data$segmento <- mapvalues(data$segmento, c("02 - PARTICULARES","03 - UNIVERSITARIO","01 - TOP", "D"), c(2,3,1,0))
+data$nomprov <- mapvalues(data$nomprov, c("CORUÑA, A", "PALMAS, LAS", 
+                                          "BALEARS, ILLES", "RIOJA, LA"), 
+                          c("CORUNYA", "PALMAS", "ILLES BALEARS", "LA RIOJA"))
+head(data)
+```
+
+<h3>Descripción de caracteristicas:</h3>
+
+**ncodpers**	Codigo del cliente
+
+**ind_empleado**	Indice de empleado: A activo, B ex empleado, F filial, N no empleado, P pasivo
+
+**sexo**	Genero del cliente
+
+**age**	Edad
+
+**antiguedad**	antiguedad del cliente (en meses)
+
+**canal_entrada**	Canal por el cual el cliente fue ingresado
+
+**nomprov**	Nombre de provincia
+
+**ind_actividad_cliente**	Indice de actividad (1, cliente activo; 0, cliente inactivo)
+
+**renta**	Ingreso bruto por hogar
+
+**segmento**	segmentación: 01 - VIP, 02 - Individuos 03 - Graduado universitario
+
+**productos** codigo binario que indica productos con que cuenta el cliente, en el siguiente orden:
+
+Cuenta de ahorros, Garantia, Cuenta corriente, Cuenta derivada, Cuenta de nomina de sueldos, Cuenta junior, Cuenta Más particular, CUenta particular, Cuenta Particular Plus, Deposito a corto plazo, Deposito a mediano plazo, Deposito a largo plazo, Cuenta electronica, Cuenta de fondos, Prestamo hipotecario, Pensión, Prestamo, Cuenta de impuestos, Tarjeta de credito, Seguro, Cuenta domestica, nomina de sueldo, Pensiones, Debito directo.
+
+******
+
+# Metodo no supervisado
+
+
+Seleccionamos las caracteristicas que se utilizaran en la clasificación: (valores numericos)
+
+```{r}
+clients <- na.omit(data[c(4:5,9:10)])
+```
+
+
+Realizamos un grafico de hombro para encontrar el numero optimo de grupos:
+
+```{r}
+#importamos la libreria cluster
+if (!require('cluster')) install.packages('cluster')
+library(cluster)
+#Realizamos el grafico de hombro
+elbow <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(clients, i)
+  elbow[i] <- fit$tot.withinss
+}
+plot(2:10,elbow[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="separacion entre centros")
+```
+
+Bajo este criterio encontramos la mejora mas significativa para tres clusters.
+
+Ahora utilizamos el algoritmo kmeans e indicamos que se clasifique en 3 grupos:
+
+```{r}
+clients3clusters <- kmeans(clients, 3)
+
+# Renta y edad
+plot(clients[c(1,3)], col=clients3clusters$cluster, main="Clasificación k-means")
+```
+
+Observamos cernania entre los puntos y grupos correctamente segmentados.
+
+Conclusión:
+
+Dado que el dataset fue pensado para ofrecer una campaña de productos financieros, no se tiene en claro el número de grupos que deben distinguirse ni los criterios que se deben utilizar.
+
+Con ello, no podemos validar si la clasificación es correcta al carecer de una varible objetivo.
+
+******
+
+## Metrica Manhattan
+
+El metodo anterior utilizaba la metrica euclidiana para calcular las distancias y así encontrar el número optimo de clusters; ahora planteamos utilizar la **metrica Manhattan** (distancia absoluta).
+
+```{r}
+# importamos la libreria 
+if (!require('NbClust')) install.packages('NbClust')
+library(NbClust)
+#convertimos los datos a matriz:
+clients_m <- data.matrix(clients)
+#calculamos la distancia Manhattan
+dist_man <- NbClust(clients_m, diss=NULL, distance = "manhattan", min.nc=2, 
+                    max.nc=5, method = "complete", index = "all") 
+
+```
+
+Observamos que para esta metrica, el número optimo de clusters es de 4, por ello volvemos a correr el modelo anterior con el nuevo número de clusters:
+
+```{r}
+clients3clusters <- kmeans(clients, 4)
+
+# Renta y edad
+plot(clients[c(1,3)], col=clients3clusters$cluster, main="Clasificación k-means")
+```
+
+Exportamos estos resultados para visualizarlos en Flourish mas adelante.
+
+```{r}
+to_plot <- data.frame(clients[c(1,3)], clients3clusters$cluster) 
+write.csv(to_plot, file="kmeans.csv")
+```
+
+
+Observamos una segmentación correcta para 4 clusters.
+
+Conclusión:
+
+La segunda metrica usada muestra una mejor clasificación que calculando la distancia euclidea (primer caso).
+
+******
+
+# DBSCAN y OPTICS
+
+Ulizaremos el algoritmo optics para calcular la alcanzabilidad:
+
+```{r}
+#importamos la libreria DBSCAN
+if (!require('dbscan')) install.packages('dbscan')
+library(dbscan)
+
+
+#Corremos optics en el dataset
+optics_res <- optics(clients_m, minPts = 10)
+
+#Gráfico de alcanzabilidad
+plot(optics_res)
+
+```
+
+De acuerdo al gráfico establecemos un umbral a 350:
+
+```{r}
+#Fijamos el umbral eps_cl a 350
+dbscan_res <- extractDBSCAN(optics_res, eps_cl = 350)
+plot(dbscan_res)
+```
+
+A continuación, visualizamos los grupos conformados:
+
+```{r}
+#grafico de clusters formas convexas
+hullplot(clients_m, dbscan_res$cluster)
+```
+
+Distinguimos un grupo numeroso de 0 a 52000 (eje x), variaremos el umbral a los picos del grafico de alcanzabilidad del lado derecho.
+
+El nuevo umbral considerado será 1100:
+
+```{r}
+#Fijamos el umbral eps_cl a 1100
+dbscan_res <- extractDBSCAN(optics_res, eps_cl = 1100)
+dbscan_res
+plot(dbscan_res)
+#grafico de clusters formas convexas
+hullplot(clients_m, dbscan_res$cluster)
+```
+Conclusión:
+
+Para el algoritmo BDScan un umbral de 1100 muestra una optima conformación de clusters, sin embargo se observa ruido que influye significativamente para una elección de umbral, se observan correctamente conformados 4 grupos.
+
