@@ -14,6 +14,8 @@ Para ejecutar el codigo en R es necesario descargar el dataset de Kaggle:
 
 https://www.kaggle.com/marialuiza07/santander-product-recomendation/version/1?select=train_ver2.csv
 
+El archivo de salida de esta parte es el archivo "clean_data.csv"
+
 ### Modelamiento:
 
 debe tener como archivo de entrada "clean_data.csv" que se adjunta en REC tanto de la Practica 1 y la Practica 2
