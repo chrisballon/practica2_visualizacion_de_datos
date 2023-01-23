@@ -1,5 +1,7 @@
 # practica2_visualizacion_de_datos
 
+Presentado por: Christopher Irvin Ballon Peralta
+
 ## Visualización
 
 (diapositiva 10)
