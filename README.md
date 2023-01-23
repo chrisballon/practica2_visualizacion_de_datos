@@ -2,6 +2,8 @@
 
 ## Visualización
 
+(diapositiva 10)
+
 https://public.flourish.studio/story/1808308/
 
 ## Código
