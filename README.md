@@ -12,7 +12,7 @@ https://public.flourish.studio/story/1808308/
 
 ### Preprocesado de datos:
 
-Para ejecutar el codigo en R es necesario descargar el dataset de Kaggle:
+Para ejecutar el codigo en R Studio es necesario descargar el dataset de Kaggle:
 
 https://www.kaggle.com/marialuiza07/santander-product-recomendation/version/1?select=train_ver2.csv
 
